@@ -92,7 +92,7 @@ export class PluggyClient {
   }
 }
 
-export function decodeCredentials(bearer: string): { clientId: string; clientSecret: string } {
+export function decodeCredentials(bearer: string): { clientId: string; clientSecret: string; itemId?: string } {
   const trimmed = bearer.trim();
   if (!trimmed.toLowerCase().startsWith("bearer ")) {
     throw new Error("Authorization header must be a Bearer token");

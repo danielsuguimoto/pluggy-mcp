@@ -5,7 +5,7 @@ import { PluggyClient, PluggyError, decodeCredentials } from "./pluggy";
 
 interface Env {}
 
-type Creds = { clientId: string; clientSecret: string };
+type Creds = { clientId: string; clientSecret: string; itemId?: string };
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
@@ -51,6 +51,14 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
       }
       return fail(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  private resolveItemId(argItemId: string | undefined): string {
+    const itemId = argItemId ?? this.props?.itemId;
+    if (!itemId) {
+      throw new Error("itemId is required: pass it as a tool arg or via the ?itemId= query param.");
+    }
+    return itemId;
   }
 
   async init() {
@@ -130,12 +138,12 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
     // ---- Accounts ----
     this.server.tool(
       "list_accounts",
-      "List accounts collected for an item. Filter by type BANK or CREDIT.",
+      "List accounts collected for an item. Filter by type BANK or CREDIT. itemId defaults to the session ?itemId= query param.",
       {
-        itemId: z.string().uuid(),
+        itemId: z.string().uuid().optional(),
         type: z.enum(["BANK", "CREDIT"]).optional(),
       },
-      (args) => this.run(() => c().get("/accounts", args)),
+      (args) => this.run(() => c().get("/accounts", { ...args, itemId: this.resolveItemId(args.itemId) })),
     );
 
     this.server.tool(
@@ -190,16 +198,16 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
     // ---- Investments ----
     this.server.tool(
       "list_investments",
-      "List investments collected for an item.",
+      "List investments collected for an item. itemId defaults to the session ?itemId= query param.",
       {
-        itemId: z.string().uuid(),
+        itemId: z.string().uuid().optional(),
         type: z
           .enum(["COE", "EQUITY", "ETF", "FIXED_INCOME", "MUTUAL_FUND", "SECURITY", "OTHER"])
           .optional(),
         page: z.number().int().optional(),
         pageSize: z.number().int().optional(),
       },
-      (args) => this.run(() => c().get("/investments", args)),
+      (args) => this.run(() => c().get("/investments", { ...args, itemId: this.resolveItemId(args.itemId) })),
     );
 
     this.server.tool(
@@ -223,9 +231,9 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
     // ---- Identities ----
     this.server.tool(
       "find_identity_by_item",
-      "Retrieve the identity resource associated with an item, if available.",
-      { itemId: z.string().uuid() },
-      (args) => this.run(() => c().get("/identity", args)),
+      "Retrieve the identity resource associated with an item, if available. itemId defaults to the session ?itemId= query param.",
+      { itemId: z.string().uuid().optional() },
+      (args) => this.run(() => c().get("/identity", { itemId: this.resolveItemId(args.itemId) })),
     );
 
     this.server.tool(
@@ -253,9 +261,9 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
     // ---- Loans ----
     this.server.tool(
       "list_loans",
-      "List loans collected for an item.",
-      { itemId: z.string().uuid() },
-      (args) => this.run(() => c().get("/loans", args)),
+      "List loans collected for an item. itemId defaults to the session ?itemId= query param.",
+      { itemId: z.string().uuid().optional() },
+      (args) => this.run(() => c().get("/loans", { itemId: this.resolveItemId(args.itemId) })),
     );
 
     this.server.tool(
@@ -327,7 +335,16 @@ export default {
         request.headers.get("Authorization") ?? request.headers.get("authorization");
       if (!header) return new Response("Missing Authorization header", { status: 401 });
       try {
-        (ctx as ExecutionContext & { props?: Creds }).props = decodeCredentials(header);
+        const props = decodeCredentials(header);
+        const url = new URL(request.url);
+        const itemId = url.searchParams.get("itemId");
+        if (itemId) {
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemId)) {
+            return new Response("Invalid itemId: must be a UUID", { status: 400 });
+          }
+          props.itemId = itemId;
+        }
+        (ctx as ExecutionContext & { props?: Creds }).props = props;
       } catch (err) {
         return new Response(err instanceof Error ? err.message : "Invalid Authorization", {
           status: 401,
