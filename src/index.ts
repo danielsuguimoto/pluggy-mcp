@@ -66,17 +66,6 @@ export class PluggyMcp extends McpAgent<Env, Record<string, never>, Creds> {
 
     // ---- Items ----
     this.server.tool(
-      "list_items",
-      "List your Pluggy items (cursor-paginated, opt-in feature). Returns { results, next }.",
-      {
-        clientUserId: z.string().optional().describe("Filter by the clientUserId you assigned."),
-        connectorId: z.number().int().optional().describe("Filter by connector id."),
-        after: z.string().optional().describe("Cursor from a previous response 'next' value."),
-      },
-      (args) => this.run(() => c().get("/v2/items", args)),
-    );
-
-    this.server.tool(
       "retrieve_item",
       "Retrieve a single Pluggy item by id, including status and execution info.",
       { id: z.string().uuid() },

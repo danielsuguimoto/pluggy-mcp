@@ -6,11 +6,11 @@ Built with [Cloudflare Agents](https://developers.cloudflare.com/agents/) (`McpA
 
 ## Tools
 
-Exposes 25 tools across Pluggy's data products:
+Exposes 24 tools across Pluggy's data products:
 
 | Domain | Tools |
 | --- | --- |
-| Items | `list_items`, `retrieve_item`, `create_item`, `update_item`, `delete_item`, `send_item_mfa` |
+| Items | `retrieve_item`, `create_item`, `update_item`, `delete_item`, `send_item_mfa` |
 | Accounts | `list_accounts`, `retrieve_account`, `get_real_time_balance` |
 | Transactions | `list_transactions`, `retrieve_transaction`, `update_transaction_category` |
 | Investments | `list_investments`, `retrieve_investment`, `list_investment_transactions` |
@@ -74,6 +74,6 @@ Same shape, different config file (`claude_desktop_config.json` / `~/.codeium/wi
 
 ## Notes
 
-- `list_items` is an opt-in Pluggy feature. It returns `403 LIST_ITEMS_FEATURE_NOT_ENABLED` until Pluggy support enables it for your team.
+- Pass `?itemId=<uuid>` on the `/mcp` URL to set a session-default item for item-scoped tools (`list_accounts`, `list_investments`, `find_identity_by_item`, `list_loans`); each also accepts an explicit `itemId` arg. Get the id from the `create_item` response or the Pluggy dashboard.
 - `list_transactions` uses the cursor-based `GET /v2/transactions` endpoint. Pass the `after` cursor from a previous response's `next` value to paginate.
 - The Durable Object persists the session and the minted API key for its lifetime; credentials are passed per-request via the Worker fetch handler into `ctx.props`.
